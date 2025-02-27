@@ -7,7 +7,7 @@ from datetime import datetime
 st.title("Sphinx Initializer")
 
 # Add a logo
-st.sidebar.image(r"C:\Users\HP\Downloads\MNP Logo Aarush .png", width=150)  # Replace "logo.png" with the path to your logo image
+st.sidebar.image("Sphinxprojectlogo.png", width=150)  # Replace "logo.png" with the path to your logo image
 
 # Move menu to the top
 menu = st.selectbox("Menu", ["Current Workspace", "View Saved Data"])
