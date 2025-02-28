@@ -43,7 +43,7 @@ if menu == "Current Workspace":
         F = st.number_input("Desired Thrust in N:", value=500.0)
         P1 = st.number_input("Chamber Pressure (MPa):", value=0.4)
         T1 = st.number_input("Temperature in K:", value=3030.0)
-        OF = st.number_input("O/F ratio:", value=5)
+        OF = st.number_input("O/F ratio:", value=5.00)
         D = st.number_input("Density (kg/m³):", value=900)
         k = st.number_input("k value (Cp/Cv):", value=1.26)
     with col2:
