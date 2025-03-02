@@ -2,6 +2,10 @@ import streamlit as st
 import math
 import pandas as pd
 from datetime import datetime
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+import matplotlib.animation as animation
 
 st.title("Sphinx Initializer")
 st.sidebar.image("Sphinxprojectlogo.png", width=150)  
@@ -55,6 +59,7 @@ if menu == "Current Workspace":
         Cd = st.number_input("Cd:", value=0.65)
         M = st.number_input(" Molecular weight:", value=24.685)
         D_ox = st.number_input("Oxidizer density (kg/m³):", value=800.0)
+
     results = calculate(F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox)
 
     st.header("Output Parameters")
@@ -64,6 +69,7 @@ if menu == "Current Workspace":
     }
     output_df = pd.DataFrame(output_data)
     st.table(output_df)
+
     calculation_name = st.text_input("Name this calculation:", "Calculation")
 
     if st.button("Save Current Calculation"):
@@ -77,7 +83,63 @@ if menu == "Current Workspace":
             st.session_state.saved_calculations = []
         st.session_state.saved_calculations.append(saved_data)
         st.success("Calculation saved!")
-        
+
+    st.header("Plots")
+
+    timesteps = 1000  
+    burn_time = t  
+    time_step = burn_time / timesteps  
+
+    reg_rate_array = np.zeros(timesteps)
+    Gox_array = np.zeros(timesteps)
+    ID_array = np.zeros(timesteps)
+    time_array = np.linspace(time_step, burn_time, timesteps)
+
+    for i in range(timesteps):
+        reg_rate = a * ((4 * float(results["Mass Flow Rate (Oxidizer)"].split()[0])) / (np.pi * ID**2)) ** n
+        G_ox = (4 * float(results["Mass Flow Rate (Oxidizer)"].split()[0])) / (np.pi * ID**2)
+        reg_rate_array[i] = reg_rate
+        Gox_array[i] = G_ox
+        ID += 2 * (reg_rate * 0.001) * time_step  
+        ID_array[i] = ID
+
+    plt.style.use('dark_background')
+
+    fig, (ax1, ax2, ax3) = plt.subplots(3, 1, figsize=(10, 15), facecolor='#0E1117')
+
+    line_color = '#1f77b4'  
+    grid_color = '#2A2A2A'  
+    text_color = 'white'    
+
+   
+    ax1.plot(time_array, reg_rate_array, color=line_color, label='Regression Rate')
+    ax1.set_title('Regression Rate vs Time', color=text_color, fontsize=14, pad=10)
+    ax1.set_xlabel('Time (s)', color=text_color, fontsize=12)
+    ax1.set_ylabel('Regression Rate (mm/s)', color=text_color, fontsize=12)
+    ax1.set_xlim([0, burn_time])
+    ax1.set_ylim([0, 2])
+    ax1.grid(True, color=grid_color, linestyle='--', alpha=0.7)
+    ax1.legend(facecolor='#0E1117', edgecolor='white', fontsize=10)
+
+    st.write(" ")
+    ax2.plot(Gox_array, reg_rate_array, color=line_color)
+    ax2.set_title('Regression Rate vs Mass Flux of Oxidizer', color=text_color, fontsize=14, pad=10)
+    ax2.set_xlabel('Oxidizer Mass Flux (kg/m²s)', color=text_color, fontsize=12)
+    ax2.set_ylabel('Regression Rate (mm/s)', color=text_color, fontsize=12)
+    ax2.grid(True, color=grid_color, linestyle='--', alpha=0.7)
+
+    st.write(" ") 
+
+    ax3.plot(time_array, Gox_array, color=line_color, linewidth=1.5)
+    ax3.set_title('Oxidizer Mass Flux vs Time', color=text_color, fontsize=14, pad=10)
+    ax3.set_xlabel('Time (s)', color=text_color, fontsize=12)
+    ax3.set_ylabel('Oxidizer Flux (kg/m²s)', color=text_color, fontsize=12)
+    ax3.grid(True, color=grid_color, linestyle='--', alpha=0.7)
+
+    plt.tight_layout(pad=3.0)
+
+    st.pyplot(fig)
+
 elif menu == "View Saved Data":
     st.header("Past Calculations")
     if "saved_calculations" in st.session_state and st.session_state.saved_calculations:
