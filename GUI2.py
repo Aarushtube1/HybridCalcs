@@ -3,9 +3,9 @@ import math
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-import matplotlib.animation as animation
+
 
 st.title("Sphinx Initializer")
 st.sidebar.image("Sphinxprojectlogo.png", width=150)  
