@@ -10,14 +10,14 @@ import matplotlib.pyplot as plt
 st.title("Sphinx Initializer")
 st.sidebar.image("Sphinxprojectlogo.png", width=150)  
 menu = st.selectbox("Menu", ["Current Workspace", "View Saved Data"])
-def calculate(F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox):
+def calculate(P_in,F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox):
     Ve = (2 * T1 * (8314 / M) * (k / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5
     Isp = Ve / 9.81
     m_prop = F / Ve
     m_fuel = m_prop / (1 + OF)
     m_ox = OF * m_fuel
     A = math.pi * (din ** 2 / 4)
-    N = m_ox / (Cd * A * (2 * (0.8 - P1) * 10**6 * D_ox) ** 0.5)
+    N = m_ox / (Cd * A * (2 * (P_in - P1) * 10**6 * D_ox) ** 0.5)
     G_ox = (4 * m_ox) / (math.pi * ID**2)  
     r = a * (G_ox ** n) 
     Cf = ((2 * k ** 2 / (k - 1)) * (2 / (k + 1)) ** ((k + 1) / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5
@@ -50,6 +50,7 @@ if menu == "Current Workspace":
         OF = st.number_input("O/F ratio:", value=5.00)
         D = st.number_input("Density (kg/m³):", value=900)
         k = st.number_input("k value (Cp/Cv):", value=1.26)
+        P_in=st.number_input("Inlet Pressure (MPa):", value=0.8)
     with col2:
         a = st.number_input("Burn Rate coefficient (a):", value=0.0304)
         n = st.number_input("Pressure exponent (n):", value=0.681)
