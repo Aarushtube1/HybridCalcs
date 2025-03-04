@@ -61,7 +61,7 @@ if menu == "Current Workspace":
         M = st.number_input(" Molecular weight:", value=24.685)
         D_ox = st.number_input("Oxidizer density (kg/m³):", value=800.0)
 
-    results = calculate(F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox)
+    results = calculate(P_in,F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox)
 
     st.header("Output Parameters")
     output_data = {
