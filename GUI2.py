@@ -1,23 +1,176 @@
 import streamlit as st
-import math
-import pandas as pd
-from datetime import datetime
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import pandas as pd
+import io
+from datetime import datetime
 
-st.title("Sphinx Initializer")
-st.sidebar.image("Sphinxprojectlogo.png", width=150)  
-menu = st.selectbox("Menu", ["Current Workspace", "View Saved Data"])
+def main():
+    st.set_page_config(page_title="Rocket Engine Design Calculator", layout="wide")
+    
+    st.title("Hybrid Rocket Engine Design Calculator")
+    st.write("This application calculates hybrid rocket engine parameters based on user inputs.")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Primary Parameters")
+        F = st.number_input("Desired Thrust (N)", value=1000.0, format="%.2f")
+        P1 = st.number_input("Combustion Chamber Pressure (MPa)", value=4.0, format="%.2f")
+        T1 = st.number_input("Combustion Chamber Temperature (K)", value=3000.0, format="%.2f")
+        OF = st.number_input("O/F Ratio", value=7.0, format="%.2f")
+        D = st.number_input("Propellant Density (kg/m³)", value=920.0, format="%.2f")
+        
+    with col2:
+        st.subheader("Engine Parameters")
+        k = st.number_input("k Value (Cp/Cv)", value=1.2, format="%.2f")
+        a = st.number_input("Fuel Regression Coefficient (a)", value=0.155, format="%.3f")
+        n = st.number_input("Mass Flux Exponent (n)", value=0.5, format="%.2f")
+        ID = st.number_input("Initial ID of the Grain (mm)", value=30.0, format="%.2f") / 1000  # Convert mm to meters
+        t = st.number_input("Burn Time (seconds)", value=10.0, format="%.2f")
+        
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        st.subheader("Injector Parameters")
+        din = st.number_input("Injector Diameter (mm)", value=1.0, format="%.2f") / 1000  # Convert mm to meters
+        Cd = st.number_input("Discharge Coefficient of the Injector", value=0.7, format="%.2f")
+        P_in = st.number_input("Inlet Pressure (MPa)", value=5.0, format="%.2f")
+    
+    with col4:
+        st.subheader("Gas Properties")
+        M = st.number_input("Molecular Weight of Exhaust Gases (g/mol)", value=22.0, format="%.2f")
+        D_ox = st.number_input("Oxidizer Density (kg/m³)", value=1230.0, format="%.2f")
+        T0 = st.number_input("Oxidizer Temperature (K)", value=224.0, format="%.2f")
+        k_ox = st.number_input("Specific Heat Ratio for Oxidizer", value=1.27, format="%.2f")
+        
+    residual_percentage = st.slider("Residual Fuel Thickness (%)", min_value=1, max_value=30, value=10)
+    
+    if st.button("Calculate Engine Parameters"):
+        with st.spinner("Calculating..."):
+            results = calculate_engine_parameters(F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox, P_in, T0, k_ox, residual_percentage)
+            
+            # results
+            st.header("Results")
+            
+            col_res1, col_res2 = st.columns(2)
+            
+            with col_res1:
+                st.subheader("Performance Parameters")
+                st.info(f"Mass Flow Rate of Oxidizer: {results['m_ox']:.4f} kg/s")
+                st.info(f"Mass Flow Rate of Fuel: {results['m_fuel']:.4f} kg/s")
+                st.info(f"Number of Injectors: {results['N_injectors']:.2f}")
+                st.info(f"Regression Rate: {results['r']:.2f} mm/s")
+                st.info(f"Exit Velocity: {results['Ve']:.2f} m/s")
+                st.info(f"Specific Impulse: {results['Isp']:.2f} s")
+                
+            with col_res2:
+                st.subheader("Dimensional Parameters")
+                st.info(f"Grain Length: {results['L'] * 1000:.2f} mm")
+                st.info(f"Throat Diameter: {results['D_th'] * 1000:.2f} mm")
+                st.info(f"Final Port Diameter: {results['OD'] * 1000:.2f} mm")
+                st.info(f"Outer Diameter with {residual_percentage}% residual fuel: {results['final_OD'] * 1000:.2f} mm")
+                st.info(f"Total Fuel Mass: {results['total_fuel_mass']:.2f} kg")
+            
+            # plots
+            st.subheader("Graphs")
+            
+            tab1, tab2, tab3, tab4 = st.tabs(["Regression Rate vs Time", "Regression Rate vs Mass Flux", 
+                                              "Oxidizer Mass Flux vs Time", "Outer Diameter vs Time"])
+            
+            with tab1:
+                fig1 = plt.figure(figsize=(10, 6))
+                plt.plot(results['time_array'], results['reg_rate_array'], 'b-', label='Regression Rate')
+                plt.title('Regression Rate vs Time')
+                plt.xlabel('Time (s)')
+                plt.ylabel('Regression Rate (mm/s)')
+                plt.grid(True)
+                plt.legend()
+                st.pyplot(fig1)
+                
+            with tab2:
+                fig2 = plt.figure(figsize=(10, 6))
+                plt.plot(results['Gox_array'], results['reg_rate_array'], 'b-')
+                plt.title('Regression Rate vs Mass Flux of Oxidizer')
+                plt.xlabel('Oxidizer Mass Flux (kg/m²s)')
+                plt.ylabel('Regression Rate (mm/s)')
+                plt.grid(True)
+                st.pyplot(fig2)
+                
+            with tab3:
+                fig3 = plt.figure(figsize=(10, 6))
+                plt.plot(results['time_array'], results['Gox_array'], 'b-', linewidth=1.5)
+                plt.title('Oxidizer Mass Flux vs Time')
+                plt.xlabel('Time (s)')
+                plt.ylabel('Oxidizer Flux (kg/m²s)')
+                plt.grid(True)
+                st.pyplot(fig3)
+                
+            with tab4:
+                fig4 = plt.figure(figsize=(10, 6))
+                plt.plot(results['time_array'], results['OD_array'] * 1000, 'r-', label="Outer Diameter")
+                plt.title("Outer Diameter vs Time")
+                plt.xlabel("Time (s)")
+                plt.ylabel("Outer Diameter (mm)")
+                plt.grid(True)
+                plt.legend()
+                st.pyplot(fig4)
+            
+            #data exp
+            st.subheader("Export Data")
+            df = pd.DataFrame({
+                "Time (s)": results['time_array'], 
+                "Regression Rate (mm/s)": results['reg_rate_array'], 
+                "Outer Diameter (mm)": results['OD_array'] * 1000,
+                "Oxidizer Mass Flux (kg/m²s)": results['Gox_array']
+            })
+            
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="Download Data as CSV",
+                data=csv,
+                file_name=f"rocket_engine_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                mime="text/csv"
+            )
+            
+            # data head
+            st.subheader("Data Sample")
+            st.dataframe(df.iloc[::len(df)//10][:10])  # Show ~10 evenly spaced rows
 
-def calculate(P_in, F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox, final_OD):
+def calculate_engine_parameters(F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox, P_in, T0, k_ox, residual_percentage):
     # Constants & Initial Calculations
     Ve = (2 * T1 * (8314 / M) * (k / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5
     Isp = Ve / 9.81
     m_prop = F / Ve
     m_fuel = m_prop / (1 + OF)
-    m_ox = OF * m_fuel 
+    m_ox = OF * m_fuel
     A = math.pi * (din ** 2 / 4)
-    N = m_ox / (Cd * A * (2 * (P_in - P1) * 10**6 * D_ox) ** 0.5)
+
+    # Inputs for injector calculation
+    P0 = P_in
+    Pe = P1
+    R_universal = 8.314      # J/mol·K
+    M_N2O = 0.044013         # kg/mol (molar mass of N2O)
+    R = R_universal / M_N2O  # Specific gas constant for N2O in J/kg·K
+
+    # Effective area of one injector
+    A_t = math.pi * (din ** 2) / 4
+    A_eff = Cd * A_t
+
+    # Pressure ratio
+    Pr = Pe / P0
+
+    # Mass flow rate per injector
+    term1 = (P0 * 10**6 * A_eff) / (T0 ** 0.5)
+    term2 = (2 * k_ox) / (R * (k_ox - 1))
+    term3 = Pr ** (2 / k_ox)
+    term4 = Pr ** ((k_ox + 1) / k_ox)
+    m_dot_injector = term1 * math.sqrt(term2 * (term3 - term4))
+
+    # Number of injectors needed
+    N_injectors = m_ox / m_dot_injector
+
     G_ox = (4 * m_ox) / (math.pi * ID**2)
     r = a * (G_ox ** n)
     Cf = ((2 * k ** 2 / (k - 1)) * (2 / (k + 1)) ** ((k + 1) / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5
@@ -25,166 +178,59 @@ def calculate(P_in, F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox, final_OD
     D_th = (4 * At / math.pi) ** 0.5
     L = m_fuel * 1000 / (D * math.pi * ID * r)
 
-    # Calculate Oxidizer Volume and Fuel Volume
-    V_ox = m_ox / D_ox  # Oxidizer volume
-    V_fuel = m_fuel / D  # Fuel volume
+    timesteps = 1000  # Reduced for better performance in web app
+    time_step = t / timesteps
 
-    # Calculate Total Propellant Mass
-    m_prop_total = m_ox + m_fuel
-
-    # Calculate Expansion Ratio 
-    P_e = 0.101325  # Exit pressure in MPa 
-    Ae_At = ((2 / (k + 1)) ** (1 / (k - 1))) * ((P1 / P_e) ** (1 / k)) * (((k + 1) / (k - 1)) * (1 - (P_e / P1) ** ((k - 1) / k))) ** 0.5
-    Ae = Ae_At * At  # Exit area
-    expansion_ratio = Ae / At  # Expansion ratio
-
-    return {
-        "Mass Flow Rate (Oxidizer)": f"{m_ox:.4f} kg/s",
-        "Mass Flow Rate (Fuel)": f"{m_fuel:.4f} kg/s",
-        "Number of Injectors": f"{N:.2f}",
-        "Regression Rate": f"{r:.2f} mm/s",
-        "Grain Length": f"{L * 1000:.2f} mm",
-        "Throat Diameter": f"{D_th * 1000:.2f} mm",
-        "Exit Velocity": f"{Ve:.2f} m/s",
-        "Specific Impulse": f"{Isp:.2f} s",
-        "Grain Outer Diameter (OD)": f"{final_OD * 1000:.2f} mm", 
-        "Oxidizer Volume": f"{V_ox:.4f} m³",
-        "Oxidizer Mass": f"{m_ox:.4f} kg",
-        "Fuel Volume": f"{V_fuel:.4f} m³",
-        "Fuel Mass": f"{m_fuel:.4f} kg",
-        "Total Propellant Mass": f"{m_prop_total:.4f} kg",
-        "Expansion Ratio": f"{expansion_ratio:.2f}"
-    }
-
-if menu == "Current Workspace":
-    st.header("Current Calculation")
-    st.sidebar.header("Input Parameters")
-    col1, col2 = st.sidebar.columns(2)
-    with col1:
-        F = st.number_input("Desired Thrust in N:", value=250.0)
-        P1 = st.number_input("Chamber Pressure (MPa):", value=0.4)
-        T1 = st.number_input("Temperature in K:", value=3030.0)
-        OF = st.number_input("O/F ratio:", value=5.50)
-        D = st.number_input("Density (kg/m³):", value=918)
-        k = st.number_input("k value (Cp/Cv):", value=1.26)
-        P_in = st.number_input("Inlet Pressure (MPa):", value=0.7)
-    with col2:
-        a = st.number_input("Burn Rate coefficient (a):", value=0.0304)
-        n = st.number_input("Pressure exponent (n):", value=0.681)
-        ID = st.number_input("Grain ID (mm):", value=20) / 1000  
-        t = st.number_input("Burn time (s):", value=5.0)
-        din = st.number_input("Injector Diameter (mm):", value=4.0) / 1000 
-        Cd = st.number_input("Cd:", value=0.62)
-        M = st.number_input("Molecular weight:", value=24.880)
-        D_ox = st.number_input("Oxidizer density (kg/m³):", value=14.7)
-
-    timesteps = 1000
-    burn_time = t
-    time_step = burn_time / timesteps
-
+    # Arrays to store values
     reg_rate_array = np.zeros(timesteps)
     Gox_array = np.zeros(timesteps)
     ID_array = np.zeros(timesteps)
     OD_array = np.zeros(timesteps)
-    time_array = np.linspace(time_step, burn_time, timesteps)
+    time_array = np.linspace(time_step, t, timesteps)
 
+    # Initial Outer Diameter
+    r_t = ID / 2
+    OD = 2 * r_t
+
+    # Simulation loop
     for i in range(timesteps):
-        G_ox = (4 * OF * ((F / ((2 * T1 * (8314 / M) * (k / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5)) / (1 + OF))) / (math.pi * ID**2)
+        G_ox = (4 * m_ox) / (math.pi * ID**2)
         reg_rate = a * G_ox ** n
         reg_rate_array[i] = reg_rate
         Gox_array[i] = G_ox
         ID += 2 * (reg_rate * 0.001) * time_step
         ID_array[i] = ID
-        r_t = (a * 0.001 * (2 * n + 1) * (OF * ((F / ((2 * T1 * (8314 / M) * (k / (k - 1)) * (1 - (0.101325 / P1) ** ((k - 1) / k))) ** 0.5)) / (1 + OF))    / math.pi) ** n * time_array[i] + (0.5 * ID) ** (2 * n + 1)) ** (1 / (2 * n + 1))
+        r_t = (a * 0.001 * (2 * n + 1) * (m_ox / math.pi) ** n * time_array[i] + (0.5 * ID) ** (2 * n + 1)) ** (1 / (2 * n + 1))
         OD = 2 * r_t
         OD_array[i] = OD
 
-    # Final OD value from the simulation loop
-    final_OD = OD_array[-1]
+    # Calculate final outer diameter with residual
+    final_port_radius = OD_array[-1] / 2
+    residual_thickness = (residual_percentage / 100) * final_port_radius
+    final_OD = 2 * (final_port_radius + residual_thickness)
 
-    # Calculate results using the final OD value
-    results = calculate(P_in, F, P1, T1, OF, D, k, a, n, ID, t, din, Cd, M, D_ox, final_OD)
+    # Calculate the mass of fuel
+    grain_radius = final_OD / 2
+    grain_volume = math.pi * grain_radius**2 * L
+    total_fuel_mass = D * grain_volume
 
-    st.header("Output Parameters")
-    output_data = {
-        "Parameter": list(results.keys()),
-        "Value": list(results.values())
+    return {
+        'Ve': Ve,
+        'Isp': Isp,
+        'm_ox': m_ox,
+        'm_fuel': m_fuel,
+        'N_injectors': N_injectors,
+        'r': r,
+        'D_th': D_th,
+        'L': L,
+        'OD': OD,
+        'final_OD': final_OD,
+        'total_fuel_mass': total_fuel_mass,
+        'time_array': time_array,
+        'reg_rate_array': reg_rate_array,
+        'Gox_array': Gox_array,
+        'OD_array': OD_array
     }
-    output_df = pd.DataFrame(output_data)
-    st.table(output_df)
 
-    calculation_name = st.text_input("Name this calculation:", "Calculation")
-
-    if st.button("Save Current Calculation"):
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        saved_data = {
-            "Name": calculation_name,
-            "Timestamp": timestamp,
-            **results
-        }
-        if "saved_calculations" not in st.session_state:
-            st.session_state.saved_calculations = []
-        st.session_state.saved_calculations.append(saved_data)
-        st.success("Calculation saved!")
-
-    st.header("Plots")
-
-    plt.style.use('dark_background')
-
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(10, 20), facecolor='#0E1117')
-
-    line_color = '#1f77b4'
-    grid_color = '#2A2A2A'
-    text_color = 'white'
-
-    # Regression Rate vs Time
-    ax1.plot(time_array, reg_rate_array, color=line_color, label='Regression Rate')
-    ax1.set_title('Regression Rate vs Time', color=text_color, fontsize=14, pad=10)
-    ax1.set_xlabel('Time (s)', color=text_color, fontsize=12)
-    ax1.set_ylabel('Regression Rate (mm/s)', color=text_color, fontsize=12)
-    ax1.set_xlim([0, burn_time])
-    ax1.set_ylim([0, 2])
-    ax1.grid(True, color=grid_color, linestyle='--', alpha=0.7)
-    ax1.legend(facecolor='#0E1117', edgecolor='white', fontsize=10)
-
-    # Regression Rate vs Mass Flux of Oxidizer
-    ax2.plot(Gox_array, reg_rate_array, color=line_color)
-    ax2.set_title('Regression Rate vs Mass Flux of Oxidizer', color=text_color, fontsize=14, pad=10)
-    ax2.set_xlabel('Oxidizer Mass Flux (kg/m²s)', color=text_color, fontsize=12)
-    ax2.set_ylabel('Regression Rate (mm/s)', color=text_color, fontsize=12)
-    ax2.grid(True, color=grid_color, linestyle='--', alpha=0.7)
-
-    # Oxidizer Mass Flux vs Time
-    ax3.plot(time_array, Gox_array, color=line_color, linewidth=1.5)
-    ax3.set_title('Oxidizer Mass Flux vs Time', color=text_color, fontsize=14, pad=10)
-    ax3.set_xlabel('Time (s)', color=text_color, fontsize=12)
-    ax3.set_ylabel('Oxidizer Flux (kg/m²s)', color=text_color, fontsize=12)
-    ax3.grid(True, color=grid_color, linestyle='--', alpha=0.7)
-
-    # Outer Diameter vs Time
-    ax4.plot(time_array, OD_array, color=line_color, label="Outer Diameter")
-    ax4.set_title("Outer Diameter vs Time", color=text_color, fontsize=14, pad=10)
-    ax4.set_xlabel("Time (s)", color=text_color, fontsize=12)
-    ax4.set_ylabel("Outer Diameter (mm)", color=text_color, fontsize=12)
-    ax4.grid(True, color=grid_color, linestyle='--', alpha=0.7)
-    ax4.legend(facecolor='#0E1117', edgecolor='white', fontsize=10)
-
-    plt.tight_layout(pad=3.0)
-
-    st.pyplot(fig)
-
-elif menu == "View Saved Data":
-    st.header("Past Calculations")
-    if "saved_calculations" in st.session_state and st.session_state.saved_calculations:
-        saved_data = []
-        for calculation in st.session_state.saved_calculations:
-            row = {
-                "Name": calculation["Name"],
-                "Timestamp": calculation["Timestamp"],
-                **{param: value for param, value in calculation.items() if param not in ["Name", "Timestamp"]}
-            }
-            saved_data.append(row)
-        saved_df = pd.DataFrame(saved_data)
-        st.table(saved_df)
-    else:
-        st.write("No past calculations available.")
+if __name__ == "__main__":
+    main()
