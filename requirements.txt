@@ -3,3 +3,6 @@ pandas
 numpy
 plotly
 matplotlib
+io
+math
+datetime
