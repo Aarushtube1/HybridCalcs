@@ -1,8 +1,5 @@
-streamlit
-pandas
-numpy
-plotly
-matplotlib
-io
-math
-datetime
+
+streamlit>=1.23.0
+numpy>=1.22.0
+matplotlib>=3.5.0
+pandas>=1.4.0
