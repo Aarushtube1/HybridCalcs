@@ -8,9 +8,9 @@ from datetime import datetime
 
 def main():
     st.set_page_config(page_title="Rocket Engine Design Calculator", layout="wide")
-    
+    st.image("sphinxfinal.png", width=150)  # Adjust width as needed
     st.title("Hybrid Rocket Engine Design Calculator")
-    st.write("This application calculates hybrid rocket engine parameters based on user inputs.")
+   
     
     col1, col2 = st.columns(2)
     
