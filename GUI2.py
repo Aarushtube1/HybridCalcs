@@ -73,49 +73,45 @@ def main():
                 st.info(f"Outer Diameter with {residual_percentage}% residual fuel: {results['final_OD'] * 1000:.2f} mm")
                 st.info(f"Total Fuel Mass: {results['total_fuel_mass']:.2f} kg")
             
-            # plots
+            # Display all four graphs in a 2x2 grid
             st.subheader("Graphs")
             
-            tab1, tab2, tab3, tab4 = st.tabs(["Regression Rate vs Time", "Regression Rate vs Mass Flux", 
-                                              "Oxidizer Mass Flux vs Time", "Outer Diameter vs Time"])
+            # Create a figure with 2x2 subplots
+            fig, axes = plt.subplots(2, 2, figsize=(12, 10))
             
-            with tab1:
-                fig1 = plt.figure(figsize=(10, 6))
-                plt.plot(results['time_array'], results['reg_rate_array'], 'b-', label='Regression Rate')
-                plt.title('Regression Rate vs Time')
-                plt.xlabel('Time (s)')
-                plt.ylabel('Regression Rate (mm/s)')
-                plt.grid(True)
-                plt.legend()
-                st.pyplot(fig1)
-                
-            with tab2:
-                fig2 = plt.figure(figsize=(10, 6))
-                plt.plot(results['Gox_array'], results['reg_rate_array'], 'b-')
-                plt.title('Regression Rate vs Mass Flux of Oxidizer')
-                plt.xlabel('Oxidizer Mass Flux (kg/m²s)')
-                plt.ylabel('Regression Rate (mm/s)')
-                plt.grid(True)
-                st.pyplot(fig2)
-                
-            with tab3:
-                fig3 = plt.figure(figsize=(10, 6))
-                plt.plot(results['time_array'], results['Gox_array'], 'b-', linewidth=1.5)
-                plt.title('Oxidizer Mass Flux vs Time')
-                plt.xlabel('Time (s)')
-                plt.ylabel('Oxidizer Flux (kg/m²s)')
-                plt.grid(True)
-                st.pyplot(fig3)
-                
-            with tab4:
-                fig4 = plt.figure(figsize=(10, 6))
-                plt.plot(results['time_array'], results['OD_array'] * 1000, 'r-', label="Outer Diameter")
-                plt.title("Outer Diameter vs Time")
-                plt.xlabel("Time (s)")
-                plt.ylabel("Outer Diameter (mm)")
-                plt.grid(True)
-                plt.legend()
-                st.pyplot(fig4)
+            # Plot 1: Regression Rate vs Time (top left)
+            axes[0, 0].plot(results['time_array'], results['reg_rate_array'], 'b-', label='Regression Rate')
+            axes[0, 0].set_title('Regression Rate vs Time')
+            axes[0, 0].set_xlabel('Time (s)')
+            axes[0, 0].set_ylabel('Regression Rate (mm/s)')
+            axes[0, 0].grid(True)
+            axes[0, 0].legend()
+            
+            # Plot 2: Regression Rate vs Mass Flux (top right)
+            axes[0, 1].plot(results['Gox_array'], results['reg_rate_array'], 'b-')
+            axes[0, 1].set_title('Regression Rate vs Mass Flux of Oxidizer')
+            axes[0, 1].set_xlabel('Oxidizer Mass Flux (kg/m²s)')
+            axes[0, 1].set_ylabel('Regression Rate (mm/s)')
+            axes[0, 1].grid(True)
+            
+            # Plot 3: Oxidizer Mass Flux vs Time (bottom left)
+            axes[1, 0].plot(results['time_array'], results['Gox_array'], 'b-', linewidth=1.5)
+            axes[1, 0].set_title('Oxidizer Mass Flux vs Time')
+            axes[1, 0].set_xlabel('Time (s)')
+            axes[1, 0].set_ylabel('Oxidizer Flux (kg/m²s)')
+            axes[1, 0].grid(True)
+            
+            # Plot 4: Outer Diameter vs Time (bottom right)
+            axes[1, 1].plot(results['time_array'], results['OD_array'] * 1000, 'r-', label="Outer Diameter")
+            axes[1, 1].set_title("Outer Diameter vs Time")
+            axes[1, 1].set_xlabel("Time (s)")
+            axes[1, 1].set_ylabel("Outer Diameter (mm)")
+            axes[1, 1].grid(True)
+            axes[1, 1].legend()
+            
+            # Adjust layout
+            plt.tight_layout()
+            st.pyplot(fig)
             
             #data exp
             st.subheader("Export Data")
